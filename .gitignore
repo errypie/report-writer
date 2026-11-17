@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+reports.db
+uploads/
+backups/
+.claude/
+.DS_Store

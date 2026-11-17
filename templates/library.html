@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Библиотека уязвимостей{% endblock %}
+{% block content %}
+<main class="dashboard">
+  <section class="hero">
+    <div>
+      <h1>Библиотека уязвимостей</h1>
+      <p class="muted">Типовые описания, которые подставляются в отчёт одним кликом: «Из библиотеки» в редакторе.
+        Чтобы добавить или обновить шаблон, оформите уязвимость в отчёте и нажмите на ней «В библиотеку».</p>
+    </div>
+    <div class="hero-actions">
+      <div class="segmented">
+        <a href="?lang=ru" class="{% if lang == 'ru' %}on{% endif %}">Русский</a>
+        <a href="?lang=en" class="{% if lang == 'en' %}on{% endif %}">English</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="lib-search">
+    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+    <input type="search" id="lib-filter" placeholder="Поиск по названию…" autofocus>
+    <span class="muted small" id="lib-count">{{ templates|length }} шаблонов</span>
+  </div>
+
+  <section class="lib-list" id="lib-list">
+    {% for t in templates %}
+    <details class="lib-item" data-title="{{ t.title|lower }}" data-id="{{ t.id }}">
+      <summary>
+        <span class="badge sev-{{ t.severity }}">{{ L.severity[t.severity] }}</span>
+        <span class="lib-title">{{ t.title }}</span>
+        <span class="lib-cvss mono">{{ t.cvss_score or '—' }}</span>
+        <button class="icon-btn danger lib-delete" title="Удалить шаблон" aria-label="Delete template">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </summary>
+      <div class="lib-body rich-view">
+        {% if t.cvss_vector %}<p class="mono small muted">{{ t.cvss_vector }}</p>{% endif %}
+        {% for key in ['description', 'impact', 'recommendation', 'refs'] %}
+          {% if t[key] %}<h4 class="field-label">{{ L['f_' ~ key] }}</h4>{{ t[key]|safe }}{% endif %}
+        {% endfor %}
+      </div>
+    </details>
+    {% else %}
+    <div class="empty"><h2>Библиотека пуста</h2><p class="muted">Сохраните уязвимость из отчёта кнопкой «В библиотеку».</p></div>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var input = document.getElementById('lib-filter');
+    var items = Array.from(document.querySelectorAll('.lib-item'));
+    var count = document.getElementById('lib-count');
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase(), n = 0;
+      items.forEach(function (it) { var show = it.dataset.title.indexOf(q) >= 0; it.hidden = !show; if (show) n++; });
+      count.textContent = n + ' шаблонов';
+    });
+    document.getElementById('lib-list').addEventListener('click', function (e) {
+      var btn = e.target.closest('.lib-delete');
+      if (!btn) return;
+      e.preventDefault();
+      var item = btn.closest('.lib-item');
+      if (!confirm('Удалить шаблон «' + item.querySelector('.lib-title').textContent + '» из библиотеки?')) return;
+      fetch('/api/library/' + item.dataset.id, { method: 'DELETE' }).then(function (r) {
+        if (r.ok) { item.remove(); items = items.filter(function (i) { return i !== item; }); count.textContent = items.length + ' шаблонов'; }
+      });
+    });
+  })();
+</script>
+{% endblock %}

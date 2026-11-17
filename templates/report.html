@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="{{ report.lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ report.title }}{% if report.client %} — {{ report.client }}{% endif %} — v{{ report.version }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+  <style>
+    @page {
+      @top-left { content: {{ (BRAND ~ ' · ' ~ L.cover_kind)|css_string|safe }}; }
+      @top-right { content: {{ report.title|css_string|safe }}; }
+      @bottom-left { content: {{ report.class_label|css_string|safe }}; color: {{ report.class_color }}; }
+      @bottom-right { content: {{ L.page|css_string|safe }} " " counter(page) " " {{ L.of|css_string|safe }} " " counter(pages); }
+    }
+  </style>
+</head>
+<body>
+  {% if report.class_key == 'test' %}<div class="watermark" aria-hidden="true">{{ L.watermark }}</div>{% endif %}
+  <div class="actions no-print">
+    <a href="{{ url_for('editor', report_id=report.id) }}" class="a-btn">← Редактор</a>
+    <a href="{{ url_for('export_docx', report_id=report.id) }}" class="a-btn">Скачать Word</a>
+    <button class="a-btn a-primary" onclick="window.print()">Печать / сохранить PDF</button>
+  </div>
+
+  <div class="doc" style="--fig-label: {{ L.figure|css_string }}">
+    <!-- ======================================================= cover -->
+    <section class="cover">
+      <div class="cover-top">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="cover-logo">
+        <span class="cover-brand">{{ BRAND }}</span>
+        <span class="stamp" style="color: {{ report.class_color }}">{{ report.class_label }}</span>
+      </div>
+      <div class="cover-main">
+        <div class="cover-kind">{{ L.cover_kind }}</div>
+        <h1>{{ report.title }}</h1>
+        {% if report.system_name %}<div class="cover-system">{{ report.system_name }}</div>{% endif %}
+        <div class="grad-bar"></div>
+      </div>
+      <table class="cover-meta">
+        <tr><th>{{ L.client }}</th><td>{{ report.client or '—' }}</td></tr>
+        <tr><th>{{ L.test_type }}</th><td>{{ report.test_type or '—' }}</td></tr>
+        <tr><th>{{ L.period }}</th><td>{{ report.start_date|date }} — {{ report.end_date|date }}</td></tr>
+        <tr><th>{{ L.version }}</th><td>{{ report.version }}</td></tr>
+      </table>
+    </section>
+
+    <!-- ======================================================= document control + TOC -->
+    <section class="page-start">
+      <h2 class="plain">{{ L.doc_control }}</h2>
+      <table class="kv">
+        <tr><th>{{ L.report }}</th><td>{{ report.title }}</td></tr>
+        <tr><th>{{ L.client }}</th><td>{{ report.client or '—' }}</td></tr>
+        <tr><th>{{ L.system }}</th><td>{{ report.system_name or '—' }}</td></tr>
+        <tr><th>{{ L.test_type }}</th><td>{{ report.test_type or '—' }}</td></tr>
+        <tr><th>{{ L.period }}</th><td>{{ report.start_date|date }} — {{ report.end_date|date }}</td></tr>
+        <tr><th>{{ L.authors }}</th><td>{{ report.authors or '—' }}</td></tr>
+        <tr><th>{{ L.version }}</th><td>{{ report.version }}</td></tr>
+        <tr><th>{{ L.classification }}</th><td>{{ report.class_label }}</td></tr>
+        <tr><th>{{ L.date }}</th><td>{{ generated|date }}</td></tr>
+      </table>
+
+      <h2 class="plain">{{ L.toc }}</h2>
+      <ol class="toc">
+        <li><a href="#s1">{{ L.s_exec }}</a>
+          <ol><li><a href="#s1-1">{{ L.s_summary }}</a></li></ol></li>
+        <li><a href="#s2">{{ L.s_scope }}</a></li>
+        <li><a href="#s3">{{ L.s_method }}</a>
+          <ol><li><a href="#s3-1">{{ L.a_scale }}</a></li></ol></li>
+        <li><a href="#s4">{{ L.s_details }}</a>
+          {% if findings %}<ol>{% for f in findings %}<li><a href="#{{ f.code }}">{{ f.code }}. {{ f.title }}</a></li>{% endfor %}</ol>{% endif %}
+        </li>
+        <li><a href="#s5">{{ L.s_concl }}</a></li>
+      </ol>
+    </section>
+
+    <!-- ======================================================= 1. executive summary -->
+    <section class="page-start">
+      <h2 id="s1"><span class="n">1.</span> {{ L.s_exec }}</h2>
+      <div class="content">{{ report.executive_summary|safe }}</div>
+
+      <h3 id="s1-1"><span class="n">1.1.</span> {{ L.s_summary }}</h3>
+      {% set total = counts.values()|sum %}
+      <div class="stats">
+        <div class="stat-total"><b>{{ total }}</b><span>{{ L.total }}</span></div>
+        <div class="stat-bars">
+          {% for s in SEVERITIES %}
+          <div class="stat-row">
+            <span class="stat-label">{{ L.severity[s] }}</span>
+            <span class="stat-track"><span class="stat-fill sev-{{ s }}" style="width: {{ (counts[s] / total * 100) if total else 0 }}%"></span></span>
+            <span class="stat-num">{{ counts[s] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if findings %}
+      <table class="grid">
+        <thead><tr><th class="w-id">{{ L.id }}</th><th>{{ L.name }}</th><th class="w-sev">{{ L.level }}</th><th class="w-cvss">{{ L.cvss }}</th><th class="w-st">{{ L.status_l }}</th></tr></thead>
+        <tbody>
+          {% for f in findings %}
+          <tr>
+            <td class="mono"><a href="#{{ f.code }}">{{ f.code }}</a></td>
+            <td>{{ f.title }}</td>
+            <td><span class="badge sev-{{ f.severity }}">{{ L.severity[f.severity] }}</span></td>
+            <td class="mono">{{ f.cvss_score or '—' }}</td>
+            <td>{{ L.status.get(f.status, f.status) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>{{ L.no_findings }}</p>
+      {% endif %}
+    </section>
+
+    <!-- ======================================================= 2. scope -->
+    <section>
+      <h2 id="s2"><span class="n">2.</span> {{ L.s_scope }}</h2>
+      <div class="content">{{ report.scope|safe }}</div>
+    </section>
+
+    <!-- ======================================================= 3. methodology -->
+    <section>
+      <h2 id="s3"><span class="n">3.</span> {{ L.s_method }}</h2>
+      <div class="content">{{ report.methodology|safe }}</div>
+      <h3 id="s3-1"><span class="n">3.1.</span> {{ L.a_scale }}</h3>
+      <table class="grid">
+        <thead><tr><th class="w-sev">{{ L.level }}</th><th class="w-cvss2">CVSS v3.1</th><th>{{ L.f_description }}</th></tr></thead>
+        <tbody>
+          {% for s, rng, text in L.scale %}
+          <tr><td><span class="badge sev-{{ s }}">{{ L.severity[s] }}</span></td><td class="mono">{{ rng }}</td><td>{{ text }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ======================================================= 4. findings -->
+    <section class="page-start">
+      <h2 id="s4"><span class="n">4.</span> {{ L.s_details }}</h2>
+      {% if not findings %}<p>{{ L.no_findings }}</p>{% endif %}
+      {% for f in findings %}
+      <article class="finding sevline-{{ f.severity }}" id="{{ f.code }}">
+        <h3><span class="n">4.{{ loop.index }}.</span> <span class="code">{{ f.code }}</span> {{ f.title }}</h3>
+        <table class="kv finding-meta">
+          <tr><th>{{ L.level }}</th><td><span class="badge sev-{{ f.severity }}">{{ L.severity[f.severity] }}</span></td>
+              <th>{{ L.cvss }}</th><td class="mono">{{ f.cvss_score or '—' }}</td></tr>
+          <tr><th>{{ L.status_l }}</th><td colspan="3">{{ L.status.get(f.status, f.status) }}</td></tr>
+          {% if f.cvss_vector %}<tr><th>{{ L.vector }}</th><td colspan="3" class="mono small">{{ f.cvss_vector }}</td></tr>{% endif %}
+          <tr><th>{{ L.assets }}</th><td colspan="3" class="mono small">{{ f.assets or '—' }}</td></tr>
+        </table>
+        {% for key in ['description', 'impact', 'reproduction', 'recommendation', 'refs'] %}
+          {% if f[key] and f[key] != '<p></p>' and f[key] != '<br>' %}
+          <h4>{{ L['f_' ~ key] }}</h4>
+          <div class="content">{{ f[key]|safe }}</div>
+          {% endif %}
+        {% endfor %}
+      </article>
+      {% endfor %}
+    </section>
+
+    <!-- ======================================================= 5. conclusion -->
+    <section>
+      <h2 id="s5"><span class="n">5.</span> {{ L.s_concl }}</h2>
+      <div class="content">{{ report.conclusion|safe }}</div>
+    </section>
+  </div>
+</body>
+</html>
