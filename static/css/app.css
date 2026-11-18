@@ -405,3 +405,19 @@ h1, h2, h3, h4 { line-height: 1.25; }
 @media (max-width: 760px) { .ann-tool span { display: none; } }
 .storage-note { margin-top: 32px; text-align: center; }
 .storage-note code { font-family: var(--mono); font-size: 12px; }
+
+/* ============================================================ pentest request template */
+.rt-page .toolbar { top: 60px; }
+.rt-paper .cover-strip img { flex: none; }
+.rt-paper .rich { min-height: 400px; }
+.rt-paper .rich td:empty::after { content: "\200B"; }
+@media (max-width: 760px) {
+  .rt-body .topbar-center { display: none; }
+  .rt-body .topbar { gap: 8px; padding: 0 10px; }
+  .rt-body .brand-app, .rt-body .brand-sep { display: none; }
+}
+@media (max-width: 760px) {
+  .rt-body .topbar-actions .btn span { display: none; }
+  .rt-body .topbar-actions .btn { padding: 0 9px; }
+  .rt-body .topbar-actions { gap: 2px; }
+}

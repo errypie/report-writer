@@ -21,6 +21,10 @@
     <div class="topbar-center">{% block topbar_center %}{% endblock %}</div>
     <div class="topbar-actions">
       {% block topbar_actions %}{% endblock %}
+      <a class="btn btn-ghost nav-lib" href="{{ url_for('request_template_page') }}" title="Шаблон заявки на пентест для команд">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 3h-4.18A3 3 0 0 0 12 1a3 3 0 0 0-2.82 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <span>Заявка</span>
+      </a>
       <a class="btn btn-ghost nav-lib" href="{{ url_for('library_page') }}" title="Библиотека уязвимостей">
         <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6zm16-4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg>
         <span>Библиотека</span>

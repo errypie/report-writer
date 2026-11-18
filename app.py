@@ -104,6 +104,11 @@ CREATE TABLE IF NOT EXISTS library (
     refs TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+);
 """
 LIBRARY_FIELDS = ["title", "severity", "cvss_score", "cvss_vector", "description", "impact",
                   "reproduction", "recommendation", "refs"]
@@ -655,6 +660,55 @@ def export_docx(report_id):
     buf.seek(0)
     name = re.sub(r'[\\/:*?"<>|]+', " ", "%s v%s" % (report["title"] or "report", report["version"])).strip()
     return send_file(buf, as_attachment=True, download_name=name + ".docx",
+                     mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+# ---------------------------------------------------------------- pentest request template
+def load_request_template():
+    from request_template import DEFAULT_HTML
+    row = get_db().execute("SELECT value, updated_at FROM settings WHERE key = 'request_template'").fetchone()
+    return (row["value"], row["updated_at"]) if row else (DEFAULT_HTML, "")
+
+
+@app.route("/request-template")
+def request_template_page():
+    from request_template import TITLE
+    html, updated = load_request_template()
+    return render_template("request_template.html", html=html, title=TITLE,
+                           updated=updated.replace("T", " ")[:16], custom=bool(updated))
+
+
+@app.route("/api/request-template", methods=["PUT"])
+def request_template_save():
+    data = request.get_json(silent=True) or {}
+    html = sanitize(data.get("html", ""))
+    ts = datetime.now().isoformat(timespec="seconds")
+    db = get_db()
+    db.execute("INSERT INTO settings (key, value, updated_at) VALUES ('request_template', ?, ?)"
+               " ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+               (html, ts))
+    db.commit()
+    return jsonify(ok=True, updated=ts.replace("T", " ")[:16])
+
+
+@app.route("/request-template/reset", methods=["POST"])
+def request_template_reset():
+    db = get_db()
+    db.execute("DELETE FROM settings WHERE key = 'request_template'")
+    db.commit()
+    return redirect(url_for("request_template_page"))
+
+
+@app.route("/request-template.docx")
+def request_template_docx():
+    from request_template import TITLE, build_request_docx
+    html, _ = load_request_template()
+    buf = io.BytesIO()
+    build_request_docx(html, TITLE, brand=inject_globals()["BRAND"],
+                       logo_path=os.path.join(BASE_DIR, "static", "img", "logo.png"),
+                       generated=fmt_date(date.today().isoformat()), upload_dir=UPLOAD_DIR).save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name=TITLE + ".docx",
                      mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
